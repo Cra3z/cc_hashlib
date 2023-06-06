@@ -1,7 +1,8 @@
 #pragma once
 #include "endian.hpp"
-namespace ccat {
-inline namespace hash {
+
+CCAT_MOD_EXPORT namespace ccat {
+namespace hashlib {
 class sha1 {
 public:
     using byte = unsigned char;
@@ -9,16 +10,17 @@ public:
     sha1() = default;
     explicit sha1(const std::string& str) : __seq(str.begin(), str.end()) {}
     sha1(const sha1&) = delete;
-    sha1(sha1&& other) : __seq(std::move(other.__seq)) {}
-    auto operator= (const sha1& other) = delete;
-    auto operator= (sha1&& other) ->sha1& {
+    sha1(sha1&& other) noexcept : __seq(std::move(other.__seq)) {}
+    auto operator= (const sha1& other) ->sha1& = delete;
+    auto operator= (sha1&& other) noexcept ->sha1& {
         if (std::addressof(other) != this) {
             __seq = std::move(other.__seq);
         }
         return *this;
     } 
-    auto update(const std::string& str) ->void {
+    auto update(const std::string& str) ->sha1& {
         std::copy(str.begin(), str.end(), std::back_inserter(__seq));
+        return *this;
     }
     auto digest() -> std::array<uint32_t, 5> {
         __extend_to_big_endian_N512bits();
@@ -74,7 +76,8 @@ public:
         std::for_each(result.begin(), result.end(), [&_ss](uint32_t i) -> void {
             for (size_t _{}; _ < 4; ++_) {
                 uint16_t tmp = reinterpret_cast<byte*>(&i)[is_little_endian() ? 3 - _ :  _];
-                _ss << (tmp >= 0x10 ? '\0' : '0') << tmp;
+                if (tmp < 0x10) _ss << '0';
+                _ss << tmp;
             }
         });
         return _ss.str();

@@ -1,7 +1,8 @@
 #pragma once
 #include "endian.hpp"
-namespace ccat {
-inline namespace hash {
+
+CCAT_MOD_EXPORT namespace ccat {
+namespace hashlib {
 class md5 {
 public:
     using byte = unsigned char;
@@ -9,9 +10,9 @@ public:
     md5() = default;
     explicit md5(const std::string& s) : __seq(s.begin(), s.end()) {}
     md5(const md5&) = delete;
-    md5(md5&& other): __seq(std::move(other.__seq)) {}
+    md5(md5&& other) noexcept : __seq(std::move(other.__seq)) {}
     auto operator=(const md5&) -> md5& = delete;
-    auto operator=(md5&& other) -> md5& {
+    auto operator=(md5&& other) noexcept -> md5& {
         if (std::addressof(other) != this) {
             __seq = std::move(other.__seq);
         }
@@ -84,13 +85,15 @@ public:
         std::for_each(result.begin(), result.end(), [&_ss](uint32_t i) -> void {
             for (size_t _{}; _ < 4; ++_) {
                 uint16_t tmp = reinterpret_cast<byte*>(&i)[is_little_endian() ? _ : 3-_];
-                _ss << (tmp >= 0x10 ? '\0' : '0') << tmp;
+                if (tmp < 0x10) _ss << '0';
+                _ss << tmp;
             }
         });
         return _ss.str();
     }
-    auto update(const std::string& str) -> void {
+    auto update(const std::string& str) -> md5& {
         std::copy(str.begin(), str.end(), std::back_inserter(__seq));
+        return *this;
     }
     auto operator<<(const std::string& str) ->md5& {
         update(str);

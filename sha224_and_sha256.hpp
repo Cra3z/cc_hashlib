@@ -1,22 +1,23 @@
 #pragma once
 #include "endian.hpp"
-namespace ccat {
-inline namespace hash {
+
+CCAT_MOD_EXPORT namespace ccat {
+namespace hashlib {
 class base_of_sha224_and_sha256 {
 public:
     using byte = unsigned char;
     base_of_sha224_and_sha256() = default;
     explicit base_of_sha224_and_sha256(const std::string& str) : __seq(str.begin(), str.end()) {}
     base_of_sha224_and_sha256(const base_of_sha224_and_sha256 &) = delete;
-    base_of_sha224_and_sha256(base_of_sha224_and_sha256 &&other) : __seq(std::move(other.__seq)) {}
-    auto operator=(const base_of_sha224_and_sha256 &other) = delete;
-    auto operator=(base_of_sha224_and_sha256&& other) -> base_of_sha224_and_sha256& {
+    base_of_sha224_and_sha256(base_of_sha224_and_sha256 &&other) noexcept : __seq(std::move(other.__seq)) {}
+    auto operator=(const base_of_sha224_and_sha256 &other) ->base_of_sha224_and_sha256& = delete;
+    auto operator=(base_of_sha224_and_sha256&& other) noexcept-> base_of_sha224_and_sha256& {
         if (std::addressof(other) != this) {
             __seq = std::move(other.__seq);
         }
         return *this;
     }
-    virtual ~base_of_sha224_and_sha256(){};
+    virtual ~base_of_sha224_and_sha256() = default;
 //to be implemented
     virtual auto get_init_magic_nums() ->std::array<uint32_t, 8> = 0;
     virtual auto get_result_size() ->size_t = 0;
@@ -67,13 +68,15 @@ public:
         std::for_each(result.begin(), std::next(result.begin(), get_result_size() / 4), [&_ss](uint32_t i) -> void {
             for (size_t _{}; _ < 4; ++_) {
                 uint16_t tmp = reinterpret_cast<byte*>(&i)[is_little_endian() ? 3 - _ : _];
-                _ss << (tmp >= 0x10 ? '\0' : '0') << tmp;
+                if (tmp < 0x10) _ss << '0';
+                _ss << tmp;
             }
         });
         return _ss.str();
     }
-    auto update(const std::string& str) -> void {
+    auto update(const std::string& str) -> base_of_sha224_and_sha256& {
         std::copy(str.begin(), str.end(), std::back_inserter(__seq));
+        return *this;
     }
     auto operator<<(const std::string& str) -> base_of_sha224_and_sha256& {
         update(str);
@@ -144,6 +147,7 @@ protected:
 
 class sha256 final : public base_of_sha224_and_sha256 {
 public:
+    using base_of_sha224_and_sha256::base_of_sha224_and_sha256;
     constexpr static size_t result_length = 32;//unit: bytes
     auto get_init_magic_nums() -> std::array<uint32_t, 8> override {
         return {
@@ -159,6 +163,7 @@ public:
 
 class sha224 final : public base_of_sha224_and_sha256 {
 public:
+    using base_of_sha224_and_sha256::base_of_sha224_and_sha256;
     using byte = unsigned char;
     constexpr static size_t result_length = 28;//unit: bytes
     auto get_init_magic_nums() -> std::array<uint32_t, 8> override {

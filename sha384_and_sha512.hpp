@@ -1,22 +1,23 @@
 #pragma once
 #include "endian.hpp"
-namespace ccat {
-inline namespace hash {
+
+CCAT_MOD_EXPORT namespace ccat {
+namespace hashlib {
 
 class base_of_sha384_and_sha512 {
 public:
     using byte = unsigned char;
     base_of_sha384_and_sha512() = default;
     base_of_sha384_and_sha512(const base_of_sha384_and_sha512&) = delete;
-    base_of_sha384_and_sha512(base_of_sha384_and_sha512&& other) : __seq(std::move(other.__seq)) {}
+    base_of_sha384_and_sha512(base_of_sha384_and_sha512&& other) noexcept : __seq(std::move(other.__seq)) {}
     auto operator= (const base_of_sha384_and_sha512&) ->base_of_sha384_and_sha512& = delete;
-    auto operator= (base_of_sha384_and_sha512&& other) ->base_of_sha384_and_sha512& {
+    auto operator= (base_of_sha384_and_sha512&& other) noexcept ->base_of_sha384_and_sha512& {
         if (std::addressof(other) != this) {
             __seq = std::move(other.__seq);
         }
         return *this;
     }
-    virtual ~base_of_sha384_and_sha512(){};
+    virtual ~base_of_sha384_and_sha512() = default;
 //to be implemented:
     virtual auto get_init_magic_nums() -> std::array<uint64_t, 8> = 0;
     virtual auto get_result_size() ->size_t = 0;
@@ -28,7 +29,8 @@ public:
         std::for_each(result.begin(), std::next(result.begin(), get_result_size() / 8), [&_ss](uint64_t i) -> void {
             for (size_t _{}; _ < 8; ++_) {
                 uint16_t tmp = reinterpret_cast<byte*>(&i)[is_little_endian() ? 7 - _ : _];
-                _ss << (tmp >= 0x10 ? '\0' : '0') << tmp;
+                if (tmp < 0x10) _ss << '0';
+                _ss << tmp;
             }
         });
         return _ss.str();
@@ -84,8 +86,9 @@ public:
         }
         return magic_nums;
     }
-    auto update(const std::string& str) -> void {
+    auto update(const std::string& str) ->base_of_sha384_and_sha512& {
         std::copy(str.begin(), str.end(), std::back_inserter(__seq));
+        return *this;
     }
     auto operator>>(std::string& str) -> void {
         str = hexdigest();
@@ -153,8 +156,9 @@ protected:
 
 
 
-class sha512 : public base_of_sha384_and_sha512 {
+class sha512 final : public base_of_sha384_and_sha512 {
 public:
+    using base_of_sha384_and_sha512::base_of_sha384_and_sha512;
     constexpr static size_t result_length = 64;//unit: bytes
     auto get_init_magic_nums() -> std::array<uint64_t, 8> override {
         return {
@@ -170,9 +174,10 @@ public:
 };
 
 
-class sha384 : public base_of_sha384_and_sha512 {
+class sha384 final : public base_of_sha384_and_sha512 {
 public:
-     constexpr static size_t result_length = 48;//unit: bytes
+    using base_of_sha384_and_sha512::base_of_sha384_and_sha512;
+    constexpr static size_t result_length = 48;//unit: bytes
     auto get_init_magic_nums() -> std::array<uint64_t, 8> override {
         return {
             0xcbbb9d5dc1059ed8u, 0x629a292a367cd507u, 
